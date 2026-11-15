@@ -13,6 +13,9 @@ export async function authenticate(
     if (error instanceof AuthError) {
       switch (error.type) {
         case "CredentialsSignin":
+          if ((error as AuthError & { code?: string }).code === "rate_limited") {
+            return "Too many sign-in attempts. Please wait 15 minutes and try again.";
+          }
           return "Invalid email or password.";
         default:
           return "Something went wrong.";
