@@ -5,3 +5,9 @@ allowBuilds:
   prisma: true
   sharp: true
   unrs-resolver: true
+
+# Security floors for versions pinned inside `next` (see docs/audit/2026-11-audit.md D-05).
+overrides:
+  sharp: ^0.35.5
+  postcss: ^8.5.23
+  source-map-js: ^1.2.2
