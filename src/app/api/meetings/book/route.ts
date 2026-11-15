@@ -6,15 +6,23 @@ import { prisma } from "@/lib/prisma";
 import { sendMail } from "@/lib/email";
 import { isSlotAvailable } from "@/lib/availability";
 import { buildMeetingIcs } from "@/lib/ics";
+import { LIMITS, clientIp, hitRateLimit, tooManyRequests } from "@/lib/rate-limit";
 
 const bookSchema = z.object({
   scheduledAt: z.string().datetime(),
-  name: z.string().min(1),
-  email: z.string().email(),
-  topic: z.string().min(1),
+  name: z.string().trim().min(1).max(200),
+  email: z.string().trim().toLowerCase().email().max(254),
+  topic: z.string().trim().min(1).max(500),
 });
 
 export async function POST(request: Request) {
+  const perIp = await hitRateLimit(
+    `booking:ip:${clientIp(request.headers)}`,
+    LIMITS.bookingPerIp.limit,
+    LIMITS.bookingPerIp.windowSeconds
+  );
+  if (!perIp.ok) return tooManyRequests(perIp.retryAfterSeconds);
+
   const body = await request.json().catch(() => null);
   const parsed = bookSchema.safeParse(body);
 
@@ -96,7 +104,13 @@ export async function POST(request: Request) {
       { filename: "meeting.ics", content: icsContent, contentType: "text/calendar" },
     ];
 
-    await sendMail({
+    // Confirmation goes to a visitor-typed address; cap per recipient (F-04).
+    const perRecipient = await hitRateLimit(
+      `mail:to:${email}`,
+      LIMITS.mailPerRecipient.limit,
+      LIMITS.mailPerRecipient.windowSeconds
+    );
+    if (perRecipient.ok) await sendMail({
       to: email,
       subject: `Meeting confirmed: ${topic}`,
       text: `Hi ${name},\n\nYour meeting is confirmed for ${scheduledAt.toISOString()}.\n\nTopic: ${topic}\n\n${fromName}`,

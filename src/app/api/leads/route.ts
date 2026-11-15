@@ -2,18 +2,27 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { sendMail } from "@/lib/email";
+import { LIMITS, clientIp, hitRateLimit, tooManyRequests } from "@/lib/rate-limit";
 
+// Trimmed + length-capped so blank or multi-megabyte submissions are rejected (F-09, F-10).
 const leadSchema = z.object({
-  name: z.string().min(1),
-  email: z.string().email(),
-  company: z.string().trim().optional(),
-  message: z.string().min(1),
-  serviceId: z.string().optional(),
-  projectType: z.string().trim().optional(),
-  budgetRange: z.string().trim().optional(),
+  name: z.string().trim().min(1).max(200),
+  email: z.string().trim().toLowerCase().email().max(254),
+  company: z.string().trim().max(200).optional(),
+  message: z.string().trim().min(1).max(5000),
+  serviceId: z.string().max(64).optional(),
+  projectType: z.string().trim().max(100).optional(),
+  budgetRange: z.string().trim().max(100).optional(),
 });
 
 export async function POST(request: Request) {
+  const perIp = await hitRateLimit(
+    `lead:ip:${clientIp(request.headers)}`,
+    LIMITS.leadPerIp.limit,
+    LIMITS.leadPerIp.windowSeconds
+  );
+  if (!perIp.ok) return tooManyRequests(perIp.retryAfterSeconds);
+
   const body = await request.json().catch(() => null);
   const parsed = leadSchema.safeParse(body);
 
@@ -57,7 +66,14 @@ export async function POST(request: Request) {
       });
     }
 
-    await sendMail({
+    // The auto-reply goes to an address the visitor typed; cap it so the form
+    // can't be used to mail-bomb a third party (F-04).
+    const perRecipient = await hitRateLimit(
+      `mail:to:${email}`,
+      LIMITS.mailPerRecipient.limit,
+      LIMITS.mailPerRecipient.windowSeconds
+    );
+    if (perRecipient.ok) await sendMail({
       to: email,
       subject: "Thanks for reaching out",
       text: `Hi ${name},\n\nThanks for your message — we'll get back to you soon.\n\n${fromName}`,

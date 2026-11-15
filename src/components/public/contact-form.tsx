@@ -13,6 +13,7 @@ export function ContactForm({
   budgetRanges: string[];
 }) {
   const [status, setStatus] = useState<"idle" | "submitting" | "sent" | "error">("idle");
+  const [errorMessage, setErrorMessage] = useState("");
   const [budget, setBudget] = useState<string>("");
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -42,6 +43,11 @@ export function ContactForm({
       form.reset();
       setBudget("");
     } else {
+      setErrorMessage(
+        response.status === 429
+          ? "Too many messages from your connection — please try again in an hour."
+          : "Something went wrong — please try again."
+      );
       setStatus("error");
     }
   }
@@ -137,7 +143,7 @@ export function ContactForm({
       </div>
 
       {status === "error" && (
-        <p className="text-sm text-red-400">Something went wrong — please try again.</p>
+        <p className="text-sm text-red-400">{errorMessage}</p>
       )}
 
       <Magnetic className="block w-full">
