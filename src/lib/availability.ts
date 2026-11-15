@@ -128,6 +128,15 @@ export function isSlotAvailable(params: {
   const parts = businessDateParts(scheduledAt, config.businessTimezone);
   const dateStr = dateStringFromParts(parts.year, parts.month, parts.day);
 
+  // Same window computeAvailableSlots offers: business-calendar days from
+  // today through today + bookingWindowDays (F-07).
+  const today = businessDateParts(now, config.businessTimezone);
+  const dayOffset = Math.round(
+    (Date.UTC(parts.year, parts.month, parts.day) - Date.UTC(today.year, today.month, today.day)) /
+      86_400_000
+  );
+  if (dayOffset > config.bookingWindowDays) return false;
+
   if (blackoutDateStrings(blackoutDates).has(dateStr)) return false;
 
   const activeRules = rules.filter((r) => r.active && r.dayOfWeek === parts.dayOfWeek);

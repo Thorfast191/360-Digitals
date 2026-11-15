@@ -94,9 +94,11 @@ export function Scheduler() {
     }
 
     const data = await response.json().catch(() => ({}));
-    setError(data.error ?? "Something went wrong — please try again.");
     setSelectedSlot(null);
+    // Reload first: loadSlots() clears `error`, so setting it before the
+    // reload wiped the message the visitor needed to see (F-06).
     await loadSlots();
+    setError(data.error ?? "Something went wrong — please try again.");
   }
 
   if (status === "booked") {
