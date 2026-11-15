@@ -141,12 +141,26 @@ model Meeting {
   name            String
   email           String
   topic           String
-  scheduledAt     DateTime      @unique
+  // Uniqueness is a PARTIAL index in SQL (migration 20261115120000): only one
+  // CONFIRMED meeting per slot, so cancelled meetings free their slot (F-01).
+  // Prisma can't express partial indexes — if `migrate dev` ever proposes
+  // dropping "Meeting_scheduledAt_confirmed_key", remove that line from the
+  // generated migration.
+  scheduledAt     DateTime
   durationMinutes Int
   status          MeetingStatus @default(CONFIRMED)
   icsUid          String
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
+
+  @@index([scheduledAt])
+}
+
+// Fixed-window counters for login/public-form throttling (src/lib/rate-limit.ts).
+model RateLimit {
+  key     String   @id
+  count   Int
+  resetAt DateTime
 }
 
 model AvailabilityRule {
