@@ -1,6 +1,10 @@
 import type { MetadataRoute } from "next";
 
-export default function sitemap(): MetadataRoute.Sitemap {
+import { connection } from "next/server";
+
+// Read SITE_URL at request time, not build time.
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  await connection();
   const baseUrl = process.env.SITE_URL ?? "http://localhost:3000";
   return [
     {

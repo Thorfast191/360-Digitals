@@ -3,7 +3,8 @@ module.exports = {
     {
       name: "agency-website",
       script: "pnpm",
-      args: "start",
+      // Bind to loopback so traffic must come through Nginx (audit D-09).
+      args: "start --hostname 127.0.0.1",
       cwd: __dirname,
       instances: 1,
       autorestart: true,

@@ -6,11 +6,21 @@ provider is assumed.
 
 ## Prerequisites on the VPS
 
-- Node.js 18.18+ and Corepack (`corepack enable && corepack prepare pnpm@latest --activate`)
+- Node.js 22.13+ (pnpm 11 requires it) and Corepack (`corepack enable` — the pnpm version is pinned in `package.json` `packageManager`)
 - Docker and the Docker Compose plugin (`docker compose version` should work)
 - PM2 (`npm install -g pm2`)
 - Nginx
 - certbot with the Nginx plugin (`apt install certbot python3-certbot-nginx` on Debian/Ubuntu)
+
+## 0. Firewall
+
+Only SSH, 80 and 443 should be reachable. The app binds `127.0.0.1:3000`
+(see `ecosystem.config.js`) and Postgres binds `127.0.0.1`, but a firewall
+is the backstop:
+
+```bash
+sudo ufw allow OpenSSH && sudo ufw allow 'Nginx Full' && sudo ufw enable
+```
 
 ## 1. Clone and install
 
@@ -46,7 +56,9 @@ cp .env.example .env
   your SMTP provider's credentials. Leaving `SMTP_HOST` empty is valid;
   the app logs emails to the console instead of sending them, which is
   useful for a staging deploy but not for production.
-- `SITE_URL` — the real public URL, e.g. `https://example.com`. This
+- `SITE_URL` — the real public URL, e.g. `https://example.com`. The production
+  server refuses to start if this is unset/localhost or if `AUTH_SECRET` is
+  a placeholder or shorter than 32 characters (`src/instrumentation.ts`). This
   feeds `sitemap.xml`, `robots.txt`, and the OG image's absolute URL
   resolution.
 

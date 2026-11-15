@@ -31,7 +31,7 @@ export async function GET(
   try {
     const buffer = await readFile(path.join(UPLOADS_DIR, filename));
     return new NextResponse(new Uint8Array(buffer), {
-      headers: { "Content-Type": contentType },
+      headers: { "Content-Type": contentType, "X-Content-Type-Options": "nosniff" },
     });
   } catch {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
